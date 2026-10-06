@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { loadApp, readIndexHtml, APP_PATH } = require('./setup/loadApp');
+const { loadApp, readIndexHtml, createFakeApi, requireApp, APP_PATH } = require('./setup/loadApp');
 
 const CSS_PATH = path.join(path.dirname(APP_PATH), 'style.css');
 
@@ -111,5 +111,17 @@ describe('theme toggle', () => {
     window.localStorage.setItem('ops-dashboard-theme', 'purple');
     runHeadScript();
     expect(theme(document)).toBe('dark');
+  });
+
+  test('a page without the toggle (e.g. an old cached index.html) still loads the dashboard', async () => {
+    await loadApp();
+    document.getElementById('theme-toggle').remove();
+    const api = createFakeApi();
+    const app = requireApp().initApp(document, api.fetchImpl);
+    await app.ready;
+    expect(document.querySelector('#kpi-orders .kpi-value').textContent).toBe('624');
+    expect(theme(document)).toBe('dark');
+    app.toggleTheme();
+    expect(theme(document)).toBe('light');
   });
 });

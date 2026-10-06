@@ -298,41 +298,49 @@
      * The theme is data-theme on <html>; style.css maps it to colours. Dark is the
      * default and the OS setting is deliberately ignored (TODO-231, AC-4).
      */
-    function storage() {
+    function isTheme(value) {
+      return THEMES.indexOf(value) >= 0;
+    }
+
+    function otherTheme(theme) {
+      return theme === 'dark' ? 'light' : 'dark';
+    }
+
+    /** localStorage can be missing or throw (privacy modes, blocked storage); never let it break the page. */
+    function storeGet(key) {
       try {
-        return document.defaultView.localStorage;
+        return document.defaultView.localStorage.getItem(key);
       } catch (err) {
         return null;
       }
     }
 
-    function readStoredTheme() {
+    function storeSet(key, value) {
       try {
-        var stored = storage() && storage().getItem(THEME_KEY);
-        return THEMES.indexOf(stored) >= 0 ? stored : DEFAULT_THEME;
-      } catch (err) {
-        return DEFAULT_THEME;
-      }
-    }
-
-    function applyTheme(theme) {
-      state.theme = theme;
-      document.documentElement.setAttribute('data-theme', theme);
-      var next = theme === 'dark' ? 'light' : 'dark';
-      els.themeToggle.textContent = next === 'dark' ? 'Dark theme' : 'Light theme';
-      els.themeToggle.setAttribute('aria-label', 'Switch to the ' + next + ' theme');
-    }
-
-    function toggleTheme() {
-      var theme = state.theme === 'dark' ? 'light' : 'dark';
-      applyTheme(theme);
-      try {
-        if (storage()) {
-          storage().setItem(THEME_KEY, theme);
-        }
+        document.defaultView.localStorage.setItem(key, value);
       } catch (err) {
         // Storage blocked or full: the theme still switches for this page view.
       }
+    }
+
+    function readStoredTheme() {
+      var stored = storeGet(THEME_KEY);
+      return isTheme(stored) ? stored : DEFAULT_THEME;
+    }
+
+    function applyTheme(theme) {
+      state.theme = isTheme(theme) ? theme : DEFAULT_THEME;
+      document.documentElement.setAttribute('data-theme', state.theme);
+      if (els.themeToggle) {
+        var next = otherTheme(state.theme);
+        els.themeToggle.textContent = next === 'dark' ? 'Dark theme' : 'Light theme';
+        els.themeToggle.setAttribute('aria-label', 'Switch to the ' + next + ' theme');
+      }
+    }
+
+    function toggleTheme() {
+      applyTheme(otherTheme(state.theme));
+      storeSet(THEME_KEY, state.theme);
     }
 
     // ---------- Loading ----------
@@ -382,7 +390,9 @@
     }
 
     applyTheme(readStoredTheme());
-    els.themeToggle.addEventListener('click', toggleTheme);
+    if (els.themeToggle) {
+      els.themeToggle.addEventListener('click', toggleTheme);
+    }
 
     els.form.addEventListener('submit', function (event) {
       event.preventDefault();
