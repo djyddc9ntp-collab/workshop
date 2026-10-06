@@ -13,6 +13,9 @@
   var DEFAULT_PRESET_DAYS = 30;
   var LATE_LIMIT = 20;
   var SVG_NS = 'http://www.w3.org/2000/svg';
+  var THEMES = ['dark', 'light'];
+  var DEFAULT_THEME = 'dark';
+  var THEME_KEY = 'ops-dashboard-theme';
 
   // ---------- API client ----------
 
@@ -122,7 +125,8 @@
       chartOnTime: document.getElementById('chart-on-time'),
       chartTickets: document.getElementById('chart-tickets'),
       lateBody: document.getElementById('late-body'),
-      vendors: document.getElementById('vendors-list')
+      vendors: document.getElementById('vendors-list'),
+      themeToggle: document.getElementById('theme-toggle')
     };
 
     var state = {
@@ -136,7 +140,8 @@
       tickets: [],
       vendors: [],
       error: null,
-      vendorsError: null
+      vendorsError: null,
+      theme: DEFAULT_THEME
     };
 
     function svgEl(name, attrs, text) {
@@ -287,6 +292,57 @@
       });
     }
 
+    // ---------- Theme ----------
+
+    /**
+     * The theme is data-theme on <html>; style.css maps it to colours. Dark is the
+     * default and the OS setting is deliberately ignored (TODO-231, AC-4).
+     */
+    function isTheme(value) {
+      return THEMES.indexOf(value) >= 0;
+    }
+
+    function otherTheme(theme) {
+      return theme === 'dark' ? 'light' : 'dark';
+    }
+
+    /** localStorage can be missing or throw (privacy modes, blocked storage); never let it break the page. */
+    function storeGet(key) {
+      try {
+        return document.defaultView.localStorage.getItem(key);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function storeSet(key, value) {
+      try {
+        document.defaultView.localStorage.setItem(key, value);
+      } catch (err) {
+        // Storage blocked or full: the theme still switches for this page view.
+      }
+    }
+
+    function readStoredTheme() {
+      var stored = storeGet(THEME_KEY);
+      return isTheme(stored) ? stored : DEFAULT_THEME;
+    }
+
+    function applyTheme(theme) {
+      state.theme = isTheme(theme) ? theme : DEFAULT_THEME;
+      document.documentElement.setAttribute('data-theme', state.theme);
+      if (els.themeToggle) {
+        var next = otherTheme(state.theme);
+        els.themeToggle.textContent = next === 'dark' ? 'Dark theme' : 'Light theme';
+        els.themeToggle.setAttribute('aria-label', 'Switch to the ' + next + ' theme');
+      }
+    }
+
+    function toggleTheme() {
+      applyTheme(otherTheme(state.theme));
+      storeSet(THEME_KEY, state.theme);
+    }
+
     // ---------- Loading ----------
 
     function load(from, to) {
@@ -333,6 +389,11 @@
       return load(range.from, range.to);
     }
 
+    applyTheme(readStoredTheme());
+    if (els.themeToggle) {
+      els.themeToggle.addEventListener('click', toggleTheme);
+    }
+
     els.form.addEventListener('submit', function (event) {
       event.preventDefault();
       state.preset = null;
@@ -359,6 +420,7 @@
       state: state,
       load: load,
       selectPreset: selectPreset,
+      toggleTheme: toggleTheme,
       api: api
     };
   }
