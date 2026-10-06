@@ -26,6 +26,7 @@ const REGISTERED_IDS = [
   'preset-7',
   'preset-30',
   'preset-90',
+  'theme-toggle',
   'status-line',
   'kpis',
   'kpi-on-time',
@@ -161,6 +162,8 @@ function createFakeApi(overrides) {
  */
 async function loadApp(overrides) {
   const html = readIndexHtml();
+  // jsdom shares one document per test file; start each load from a fresh <html>.
+  document.documentElement.removeAttribute('data-theme');
   const bodyMatch = html.match(/<body>([\s\S]*)<\/body>/);
   document.body.innerHTML = bodyMatch[1].replace(/<script[^>]*><\/script>/g, '');
 

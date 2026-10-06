@@ -13,6 +13,9 @@
   var DEFAULT_PRESET_DAYS = 30;
   var LATE_LIMIT = 20;
   var SVG_NS = 'http://www.w3.org/2000/svg';
+  var THEMES = ['dark', 'light'];
+  var DEFAULT_THEME = 'dark';
+  var THEME_KEY = 'ops-dashboard-theme';
 
   // ---------- API client ----------
 
@@ -122,7 +125,8 @@
       chartOnTime: document.getElementById('chart-on-time'),
       chartTickets: document.getElementById('chart-tickets'),
       lateBody: document.getElementById('late-body'),
-      vendors: document.getElementById('vendors-list')
+      vendors: document.getElementById('vendors-list'),
+      themeToggle: document.getElementById('theme-toggle')
     };
 
     var state = {
@@ -136,7 +140,8 @@
       tickets: [],
       vendors: [],
       error: null,
-      vendorsError: null
+      vendorsError: null,
+      theme: DEFAULT_THEME
     };
 
     function svgEl(name, attrs, text) {
@@ -287,6 +292,49 @@
       });
     }
 
+    // ---------- Theme ----------
+
+    /**
+     * The theme is data-theme on <html>; style.css maps it to colours. Dark is the
+     * default and the OS setting is deliberately ignored (TODO-231, AC-4).
+     */
+    function storage() {
+      try {
+        return document.defaultView.localStorage;
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function readStoredTheme() {
+      try {
+        var stored = storage() && storage().getItem(THEME_KEY);
+        return THEMES.indexOf(stored) >= 0 ? stored : DEFAULT_THEME;
+      } catch (err) {
+        return DEFAULT_THEME;
+      }
+    }
+
+    function applyTheme(theme) {
+      state.theme = theme;
+      document.documentElement.setAttribute('data-theme', theme);
+      var next = theme === 'dark' ? 'light' : 'dark';
+      els.themeToggle.textContent = next === 'dark' ? 'Dark theme' : 'Light theme';
+      els.themeToggle.setAttribute('aria-label', 'Switch to the ' + next + ' theme');
+    }
+
+    function toggleTheme() {
+      var theme = state.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(theme);
+      try {
+        if (storage()) {
+          storage().setItem(THEME_KEY, theme);
+        }
+      } catch (err) {
+        // Storage blocked or full: the theme still switches for this page view.
+      }
+    }
+
     // ---------- Loading ----------
 
     function load(from, to) {
@@ -333,6 +381,9 @@
       return load(range.from, range.to);
     }
 
+    applyTheme(readStoredTheme());
+    els.themeToggle.addEventListener('click', toggleTheme);
+
     els.form.addEventListener('submit', function (event) {
       event.preventDefault();
       state.preset = null;
@@ -359,6 +410,7 @@
       state: state,
       load: load,
       selectPreset: selectPreset,
+      toggleTheme: toggleTheme,
       api: api
     };
   }
